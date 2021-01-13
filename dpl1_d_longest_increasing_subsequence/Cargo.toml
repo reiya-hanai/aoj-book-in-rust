@@ -1,0 +1,9 @@
+[package]
+name = "dpl1_d_longest_increasing_subsequence"
+version = "0.1.0"
+authors = ["hanare <hanare08@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
