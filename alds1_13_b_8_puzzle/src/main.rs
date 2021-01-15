@@ -63,54 +63,63 @@ macro_rules! read_value {
 const N: usize = 3;
 const N2: usize = N * N;
 
-type Board = Vec<usize>;
+#[derive(Clone)]
+struct Board {
+    state: Vec<usize>, // state of board
+    path: Vec<usize>,  // sequence of moved numbers from initial state
+}
 
-fn is_target(b: &Board) -> bool {
-    b.iter().take(N2 - 1).zip(1..N2).all(|(&i, j)| i == j)
+impl Board {
+    // upper, left, right, lower
+    fn is_solved(&self) -> bool {
+        self.state
+            .iter()
+            .take(N2 - 1)
+            .zip(1..N2)
+            .all(|(&i, j)| i == j)
+    }
+
+    fn generate_possible_boards(&self) -> Vec<Board> {
+        assert!(self.state.iter().filter(|&&i| i == 0).count() > 0);
+        let zero_pos = self.state.iter().position(|&x| x == 0).unwrap();
+        let sx = zero_pos % N;
+        let sy = zero_pos / N;
+        let n = N as i32;
+        // position of tile to move from the blank: upper, left, right, lower
+        [(0, 1), (-1, 0), (1, 0), (0, -1)]
+            .iter()
+            .map(|(dx, dy)| (sx as i32 + dx, sy as i32 + dy))
+            .filter(|&(tx, ty)| tx >= 0 && tx < n && ty >= 0 && ty < n)
+            .map(|(tx, ty)| {
+                let tx = tx as usize;
+                let ty = ty as usize;
+
+                let mut state = self.state.clone();
+                state.swap(zero_pos, ty * N + tx);
+                let mut path = self.path.clone();
+                let moved_num = state[zero_pos];
+                path.push(moved_num);
+                Board { state, path }
+            })
+            .collect()
+    }
 }
 
 fn bfs(input: Board) -> Option<Vec<usize>> {
     let mut q = VecDeque::new();
     let mut visited = HashSet::new();
-
-    // upper, left, right, lower
-    const DX: [i32; 4] = [0, -1, 1, 0];
-    const DY: [i32; 4] = [1, 0, 0, -1];
-
-    q.push_back((input, vec![]));
-    while let Some((board, path)) = q.pop_front() {
-        if is_target(&board) {
-            return Some(path);
+    q.push_back(input);
+    while let Some(board) = q.pop_front() {
+        if board.is_solved() {
+            return Some(board.path);
         }
-        visited.insert(board.clone());
+        visited.insert(board.state.clone());
 
-        // generate possible states
-        // swap blank with upper/left/right/lower tile
-        assert!(board.iter().filter(|&&i| i == 0).count() > 0);
-        let zero_pos = board.iter().position(|&x| x == 0).unwrap();
-        let sx = zero_pos % N;
-        let sy = zero_pos / N;
-        let n = N as i32;
-        for i in 0..4 {
-            let tx = sx as i32 + DX[i];
-            let ty = sy as i32 + DY[i];
-            if tx < 0 || tx >= n || ty < 0 || ty >= n {
-                continue;
-            }
-            let tx = tx as usize;
-            let ty = ty as usize;
-
-            let mut board_new = board.clone();
-            board_new.swap(zero_pos, ty * N + tx);
-            if visited.contains(&board_new) {
-                continue;
-            } else {
-                let moved_num = board_new[zero_pos];
-                let mut path_new = path.clone();
-                path_new.push(moved_num);
-                q.push_back((board_new, path_new));
-            }
-        }
+        let branches = board.generate_possible_boards();
+        branches
+            .iter()
+            .filter(|&b| !visited.contains(&b.state))
+            .for_each(|b| q.push_back(b.clone()));
     }
     None
 }
@@ -124,8 +133,12 @@ fn solve(board: Board) {
 
 fn main() {
     input! {
-        board: [usize; N2],
+        state: [usize; N2],
     }
 
+    let board = Board {
+        state,
+        path: vec![],
+    };
     solve(board);
 }
